@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Cothority Demo</string>
+    <string name="hello">This is the OmniLedger for Android demo. Press the button to send an event!</string>
+</resources>
