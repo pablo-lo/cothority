@@ -508,6 +508,19 @@ func TestService_ValueSpawn(t *testing.T) {
 	require.Equal(t, myvalue, values[0])
 }
 
+func TestService_SetLeader(t *testing.T) {
+	s := newSer(t, 1, testInterval)
+	defer s.local.CloseAll()
+	defer closeQueues(s.local)
+
+	for _, service := range s.services {
+		// everyone should have the same leader after the genesis block is stored
+		leader := service.leaderMap.get(string(s.sb.SkipChainID()))
+		require.NotNil(t, leader)
+		require.True(t, leader.Equal(s.services[0].ServerIdentity()))
+	}
+}
+
 func darcToTx(t *testing.T, d2 darc.Darc, signer darc.Signer) ClientTransaction {
 	d2Buf, err := d2.ToProto()
 	require.Nil(t, err)

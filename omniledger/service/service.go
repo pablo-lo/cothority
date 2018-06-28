@@ -69,6 +69,8 @@ type Service struct {
 	storage *storage
 
 	createSkipChainMut sync.Mutex
+
+	leaderMap leaderMap
 }
 
 // storageID reflects the data we're storing - we could store more
@@ -367,6 +369,7 @@ func (s *Service) createNewBlock(scID skipchain.SkipBlockID, r *onet.Roster, cts
 func (s *Service) updateCollection(msg network.Message) {
 	uc, ok := msg.(*updateCollection)
 	if !ok {
+		log.Error("updateCollection cast failure")
 		return
 	}
 
@@ -395,6 +398,18 @@ func (s *Service) updateCollection(msg network.Message) {
 		log.Error("Couldn't recreate state changes:", err.Error())
 		return
 	}
+
+	// Check whether we are storing a genesis config, if we are, also set
+	// the leaderMap.
+	if scs.isGenesisConfig() {
+		// TODO we need to rotate the leader
+		leader := sb.Roster.List[0]
+		if err := s.leaderMap.add(string(sb.SkipChainID()), leader); err != nil {
+			log.Error("failed to add entry in leaderMap", err)
+			return
+		}
+	}
+
 	if i, _ := sb.Roster.Search(s.ServerIdentity().ID); i == 0 {
 		log.Lvlf2("%s: Storing state changes %v", s.ServerIdentity(), scs)
 	} else {
@@ -712,6 +727,7 @@ func newService(c *onet.Context) (onet.Service, error) {
 		ServiceProcessor: onet.NewServiceProcessor(c),
 		CloseQueues:      make(chan bool),
 		contracts:        make(map[string]OmniLedgerContract),
+		leaderMap:        newLeaderMap(c.ServerIdentity()),
 	}
 	if err := s.RegisterHandlers(s.CreateGenesisBlock, s.AddTransaction,
 		s.GetProof); err != nil {
